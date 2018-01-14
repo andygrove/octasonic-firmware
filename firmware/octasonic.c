@@ -54,8 +54,6 @@ void spi_init_slave (void)
   SPCR |= ((1 << SPE) | (1 << SPIE));
 
   SPDR = 0;
-
-  DDRB |= (1 << PB0); // PB0 = output (LED)
 }
 
 /** 
@@ -169,6 +167,10 @@ unsigned int poll_sensor(unsigned int i) {
 
 int main(void)
 {
+
+  // enable OUTPUT for LED
+  DDRB |= (1 << PB0); // PB0 = output (LED)
+
   // turn LED off
   PORTB &= ~(1 << PB0);
 
