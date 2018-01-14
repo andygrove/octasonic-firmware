@@ -45,7 +45,6 @@ AVRDUDE = avrdude
 ##########        You shouldn't need to edit below.             ##########
 ##########------------------------------------------------------##########
 
-TARGET = octasonic
 # Object files: will find all .c/.h files in current directory
 #  and in LIBDIR.  If you have any other (sub-)directories with code,
 #  you can add them in to SOURCES below in the wildcard statement.
