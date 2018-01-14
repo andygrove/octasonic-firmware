@@ -9,8 +9,12 @@
 #include "pinDefines.h"
 #include "macros.h"
 
+// firmware version MAJOR.MINOR e.g. 1.1
+#define FIRMWARE_VERSION_MAJOR 0x01
+#define FIRMWARE_VERSION_MINOR 0x01
+
+// the protocol version is updated every time a new command is added to the protocol
 #define PROTOCOL_VERSION 0x02
-#define FIRMWARE_VERSION 0x02
 
 // these are the commands that can be sent to the Octasonic board
 #define CMD_GET_PROTOCOL_VERSION 0x01
@@ -21,8 +25,10 @@
 #define CMD_TOGGLE_LED           0x06
 #define CMD_SET_MAX_DISTANCE     0x07
 #define CMD_GET_MAX_DISTANCE     0x08
-#define CMD_GET_FIRMWARE_VERSION 0x09
+#define CMD_GET_FIRMWARE_VERSION_MAJOR 0x09
+#define CMD_GET_FIRMWARE_VERSION_MINOR 0x0a
 
+// constants
 #define MAX_SENSOR_COUNT 8
 #define MAX_ECHO_TIME_US max_distance * 58
 
@@ -132,9 +138,12 @@ ISR(SPI_STC_vect) {
       SPDR = ((max_distance / 16) - 1) & 0x0F;
       break;
 
-    case CMD_GET_FIRMWARE_VERSION:
-      // get protocol version
-      SPDR = FIRMWARE_VERSION;
+    case CMD_GET_FIRMWARE_VERSION_MAJOR:
+      SPDR = FIRMWARE_VERSION_MAJOR;
+      break;
+
+    case CMD_GET_FIRMWARE_VERSION_MINOR:
+      SPDR = FIRMWARE_VERSION_MINOR;
       break;
 
     default:
