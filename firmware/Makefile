@@ -4,6 +4,7 @@
 ##########    Check these every time you start a new project    ##########
 ##########------------------------------------------------------##########
 
+TARGET= octasonic
 MCU   = atmega328p
 F_CPU = 16000000UL
 BAUD  = 9600UL
@@ -43,11 +44,6 @@ AVRDUDE = avrdude
 ##########        Convert .elf file into .hex                   ##########
 ##########        You shouldn't need to edit below.             ##########
 ##########------------------------------------------------------##########
-
-## The name of your project (without the .c)
-# TARGET = blinkLED
-## Or name it automatically after the enclosing directory
-TARGET = $(lastword $(subst /, ,$(CURDIR)))
 
 # Object files: will find all .c/.h files in current directory
 #  and in LIBDIR.  If you have any other (sub-)directories with code,
