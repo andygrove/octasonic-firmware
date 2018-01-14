@@ -11,6 +11,7 @@
 
 #define PROTOCOL_VERSION 0x01
 
+// these are the commands that can be sent to the Octasonic board
 #define CMD_GET_PROTOCOL_VERSION 0x01
 #define CMD_SET_SENSOR_COUNT     0x02
 #define CMD_GET_SENSOR_COUNT     0x03
@@ -23,7 +24,8 @@
 #define MAX_SENSOR_COUNT 8
 #define MAX_ECHO_TIME_US max_distance * 58
 
-// maximum distance to measure
+// maximum distance to measure .. because this protocol uses a single byte to return the response, we limit
+// the distance to 255 centimeters
 unsigned int max_distance = 255;
 
 // default to the maximum sensor count but this can be overridden
@@ -167,6 +169,18 @@ unsigned int poll_sensor(unsigned int i) {
 
 int main(void)
 {
+  // turn LED off
+  PORTB &= ~(1 << PB0);
+
+  // blink the LED a few times to show we're alive
+  for (int i=0; i<8; i++) {
+      PORTB ^= (1 << PB0);
+      _delay_ms(250);
+  }
+
+  // turn LED off
+  PORTB &= ~(1 << PB0);
+
   // init all sensors readings to zero
   for (int i=0; i<MAX_SENSOR_COUNT; i++) {
     sensor_data[i] = 0;
