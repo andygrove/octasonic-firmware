@@ -1,6 +1,6 @@
 # octasonic-firmware
 
-Firmware for the Octasonic HC-SR04 Breakout (https://www.tindie.com/products/andygrove73/octasonic-8-x-hc-sr04-ultrasonic-breakout-board/)
+This is the official firmware for the [Octasonic HC-SR04 Breakout](https://www.tindie.com/products/andygrove73/octasonic-8-x-hc-sr04-ultrasonic-breakout-board/) that allows up to 8 HC-SR04 ultrasonic sensors to be monitored via SPI. 
 
 # Prerequisites
 
