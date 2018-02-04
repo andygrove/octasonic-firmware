@@ -66,31 +66,39 @@ void spi_init_slave (void)
   SPDR = 0;
 }
 
+//Function to send and receive data
+unsigned int spi_tranceiver (unsigned int data)
+{
+  SPDR = data;                                  //Load data into buffer
+  while(!(SPSR & (1<<SPIF) ));                  //Wait until transmission complete
+  return(SPDR);                                 //Return received data
+}
+
 /** 
  * This function is called AFTER an SPI transfer is complete. The incoming byte is 
  * stored in SPDR. A new value can be stored in SPDR to be returned to the master
  * device on the next SPI transfer. The entire protocol is currently based on single 
  * byte request/response pairs.
  */
-ISR(SPI_STC_vect) {
-
-  unsigned int data_in = SPDR;
+unsigned int process_command(unsigned int data_in) {
 
   // first 4 bits are the command number
   unsigned int command = (data_in & 0xF0) >> 4;
   unsigned int index = 0;
+  
+  unsigned int response = 0x00;
 
   switch (command) {
 
     case 0x00:
       // after the master sends a valid command, it receives the response on the next 
       // call and sends a zero request for that call
-      SPDR = 0x00;
+      response = 0x00;
       break;
 
     case CMD_GET_PROTOCOL_VERSION:
       // get protocol version
-      SPDR = PROTOCOL_VERSION;
+      response = PROTOCOL_VERSION;
       break;
 
     case CMD_SET_SENSOR_COUNT: 
@@ -100,12 +108,12 @@ ISR(SPI_STC_vect) {
         sensor_count = new_sensor_count;
       }
       // return the current sensor count
-      SPDR = sensor_count;
+      response = sensor_count;
       break;
 
     case CMD_GET_SENSOR_COUNT: 
       // get_sensor_count - no parameters, return the current sensor count in response
-      SPDR = sensor_count;
+      response = sensor_count;
       break;
 
     case CMD_GET_SENSOR_READING:
@@ -113,16 +121,16 @@ ISR(SPI_STC_vect) {
       index = data_in & 0x0F;
       if (index<0 || index>=MAX_SENSOR_COUNT) {
         // return error code of 0xFF (255) if the sensor number is not valid
-        SPDR = 0xFF;
+        response = 0xFF;
       } else {
-        SPDR = sensor_data[index];
+        response = sensor_data[index];
       }
       break;
 
     case CMD_SET_INTERVAL:
       // set interval between activating each sensor (in multiples of 10ms)
       sleep_between_readings = data_in & 0x0F;
-      SPDR = 0x00;
+      response = 0x00;
       break;
 
     case CMD_TOGGLE_LED:
@@ -140,23 +148,24 @@ ISR(SPI_STC_vect) {
       break;
 
     case CMD_GET_MAX_DISTANCE:  
-      SPDR = ((max_distance / 16) - 1) & 0x0F;
+      response = ((max_distance / 16) - 1) & 0x0F;
       break;
 
     case CMD_GET_FIRMWARE_VERSION_MAJOR:
-      SPDR = FIRMWARE_VERSION_MAJOR;
+      response = FIRMWARE_VERSION_MAJOR;
       break;
 
     case CMD_GET_FIRMWARE_VERSION_MINOR:
-      SPDR = FIRMWARE_VERSION_MINOR;
+      response = FIRMWARE_VERSION_MINOR;
       break;
 
     default:
       // unsupported command so return 0xFF to indicate error condition
-      SPDR = 0xFF;
+      response = 0xFF;
       break;
   }
 
+  return response;
 }
 
 unsigned int poll_sensor(unsigned int i) {
@@ -195,7 +204,6 @@ int main(void)
 
   // initialize slave SPI
   spi_init_slave();
-  sei();
 
   // enable OUTPUT for LED
   DDRB |= (1 << PB0); // PB0 = output (LED)
@@ -213,15 +221,20 @@ int main(void)
   PORTB &= ~(1 << PB0);
 
   // loop forever, taking readings, and sleeping between each reading
+  unsigned int data = 0x00;
   while(1) {
-    for (int i=0; i<sensor_count; i++) {
-//      sensor_data[i] = poll_sensor(i);
+    unsigned int request = spi_tranceiver(data);
+    data = process_command(request);
 
-      // sleep for between 0 and 150 ms (intervals of 10 ms)
-      for (int i=0; i<sleep_between_readings; i++) {
-        _delay_ms(10);
-      }
-    }
+
+//    for (int i=0; i<sensor_count; i++) {
+//      sensor_data[i] = poll_sensor(i);
+//
+//      // sleep for between 0 and 150 ms (intervals of 10 ms)
+//      for (int i=0; i<sleep_between_readings; i++) {
+//        _delay_ms(10);
+//      }
+//    }
   }
 
 }
