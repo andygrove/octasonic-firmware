@@ -47,8 +47,6 @@ volatile unsigned int sleep_between_readings = 5;
 
 volatile unsigned int new_sensor_count = 0;
 
-volatile unsigned int counter = 0;
-
 void spi_init_slave (void)
 {
   // inputs
@@ -65,84 +63,7 @@ void spi_init_slave (void)
   // enable SPI and SPI interrupt
   SPCR |= ((1 << SPE) | (1 << SPIE));
 
-  // CPOL: sclk low when idle (0)
-  // CPHA: sample data on rising edge of sclk (0)
-  SPCR &= ~((1 << CPOL) | (1 << CPHA));
-
   SPDR = 0;
-}
-
-unsigned int process(unsigned int data_in) {
-
-  // first 4 bits are the command number
-  unsigned int command = (data_in & 0xF0) >> 4;
-  unsigned int index = 0;
-
-  switch (command) {
-
-    case 0x00:
-      // returning a sequential counter helps debugging
-      return counter++;
-
-    case CMD_GET_PROTOCOL_VERSION:
-      // get protocol version
-      return PROTOCOL_VERSION;
-
-    case CMD_SET_SENSOR_COUNT:
-      // set_sensor_count to the value specified in the last 4 bits
-      new_sensor_count = data_in & 0x0F;
-      if (new_sensor_count >= 1 && new_sensor_count <= MAX_SENSOR_COUNT) {
-        sensor_count = new_sensor_count;
-      }
-      // return the current sensor count
-      return sensor_count;
-
-    case CMD_GET_SENSOR_COUNT:
-      // get_sensor_count - no parameters, return the current sensor count in response
-      return sensor_count;
-
-    case CMD_GET_SENSOR_READING:
-      // get_sensor_reading - last 4 bits indicates sensor number 0 through 7
-      index = data_in & 0x0F;
-      if (index<0 || index>=MAX_SENSOR_COUNT) {
-        // return error code of 0xFF (255) if the sensor number is not valid
-        return 0xFF;
-      } else {
-        return sensor_data[index];
-      }
-
-    case CMD_SET_INTERVAL:
-      // set interval between activating each sensor (in multiples of 10ms)
-      sleep_between_readings = data_in & 0x0F;
-      return 0x00;
-
-    case CMD_TOGGLE_LED:
-      // toggle LED
-      PORTB ^= (1 << PB0);
-      return 0x00;
-
-    case CMD_SET_MAX_DISTANCE:
-      // set max distance to measure in multiples of 16 cm to make it fit with the single byte protocol
-      // 0x00 = 16cm
-      // 0x01 = 32cm
-      // ...
-      // 0x0F = 256cm
-      max_distance = 16 * ((data_in & 0x0F) + 1);
-      return 0x00;
-
-    case CMD_GET_MAX_DISTANCE:
-      return ((max_distance / 16) - 1) & 0x0F;
-
-    case CMD_GET_FIRMWARE_VERSION_MAJOR:
-      return FIRMWARE_VERSION_MAJOR;
-
-    case CMD_GET_FIRMWARE_VERSION_MINOR:
-      return FIRMWARE_VERSION_MINOR;
-
-    default:
-      // unsupported command so return 0xFF to indicate error condition
-      return 0xFF;
-  }
 }
 
 /** 
@@ -155,10 +76,86 @@ ISR(SPI_STC_vect) {
 
   unsigned int data_in = SPDR;
 
-  unsigned int data_out = process(data_in);
+  // first 4 bits are the command number
+  unsigned int command = (data_in & 0xF0) >> 4;
+  unsigned int index = 0;
 
-  // set the data ready for the next SPI transfer
-  SPDR = data_out;
+  switch (command) {
+
+    case 0x00:
+      // after the master sends a valid command, it receives the response on the next 
+      // call and sends a zero request for that call
+      SPDR = 0x00;
+      break;
+
+    case CMD_GET_PROTOCOL_VERSION:
+      // get protocol version
+      SPDR = PROTOCOL_VERSION;
+      break;
+
+    case CMD_SET_SENSOR_COUNT: 
+      // set_sensor_count to the value specified in the last 4 bits
+      new_sensor_count = data_in & 0x0F;
+      if (new_sensor_count >= 1 && new_sensor_count <= MAX_SENSOR_COUNT) {
+        sensor_count = new_sensor_count;
+      }
+      // return the current sensor count
+      SPDR = sensor_count;
+      break;
+
+    case CMD_GET_SENSOR_COUNT: 
+      // get_sensor_count - no parameters, return the current sensor count in response
+      SPDR = sensor_count;
+      break;
+
+    case CMD_GET_SENSOR_READING:
+      // get_sensor_reading - last 4 bits indicates sensor number 0 through 7
+      index = data_in & 0x0F;
+      if (index<0 || index>=MAX_SENSOR_COUNT) {
+        // return error code of 0xFF (255) if the sensor number is not valid
+        SPDR = 0xFF;
+      } else {
+        SPDR = sensor_data[index];
+      }
+      break;
+
+    case CMD_SET_INTERVAL:
+      // set interval between activating each sensor (in multiples of 10ms)
+      sleep_between_readings = data_in & 0x0F;
+      SPDR = 0x00;
+      break;
+
+    case CMD_TOGGLE_LED:
+      // toggle LED
+      PORTB ^= (1 << PB0);
+      break;
+
+    case CMD_SET_MAX_DISTANCE:
+      // set max distance to measure in multiples of 16 cm to make it fit with the single byte protocol
+      // 0x00 = 16cm
+      // 0x01 = 32cm
+      // ...
+      // 0x0F = 256cm
+      max_distance = 16 * ((data_in & 0x0F) + 1);
+      break;
+
+    case CMD_GET_MAX_DISTANCE:  
+      SPDR = ((max_distance / 16) - 1) & 0x0F;
+      break;
+
+    case CMD_GET_FIRMWARE_VERSION_MAJOR:
+      SPDR = FIRMWARE_VERSION_MAJOR;
+      break;
+
+    case CMD_GET_FIRMWARE_VERSION_MINOR:
+      SPDR = FIRMWARE_VERSION_MINOR;
+      break;
+
+    default:
+      // unsupported command so return 0xFF to indicate error condition
+      SPDR = 0xFF;
+      break;
+  }
 
 }
 
@@ -218,7 +215,7 @@ int main(void)
   // loop forever, taking readings, and sleeping between each reading
   while(1) {
     for (int i=0; i<sensor_count; i++) {
-      sensor_data[i] = poll_sensor(i);
+//      sensor_data[i] = poll_sensor(i);
 
       // sleep for between 0 and 150 ms (intervals of 10 ms)
       for (int i=0; i<sleep_between_readings; i++) {
